@@ -1,128 +1,121 @@
 import os
-import asyncio
+import traceback
 import logging
-import google.generativeai as genai
+import asyncio
 
-from telegram import Update
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    filters,
-    ContextTypes
-)
+print("STARTING BOT...")
 
-# ==========================================
-# LOGGING
-# ==========================================
+try:
 
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+    import google.generativeai as genai
 
-logger = logging.getLogger(__name__)
-
-# ==========================================
-# TOKENS
-# ==========================================
-
-BOT_TOKEN = os.getenv("8924341818:AAHw7lhFd2ubSwYJOZYo03VJT3uHvEvgKvM")
-GEMINI_API_KEY = os.getenv("AIzaSyDcOWamA94-NeJ1uptjSE-KKc3WYX23NrU")
-
-print("BOT TOKEN FOUND:", bool(BOT_TOKEN))
-print("GEMINI FOUND:", bool(GEMINI_API_KEY))
-
-# ==========================================
-# CHECK TOKENS
-# ==========================================
-
-if not BOT_TOKEN:
-    raise Exception("BOT_TOKEN missing")
-
-if not GEMINI_API_KEY:
-    raise Exception("GEMINI_API_KEY missing")
-
-# ==========================================
-# GEMINI
-# ==========================================
-
-genai.configure(api_key=GEMINI_API_KEY)
-
-model = genai.GenerativeModel(
-    "gemini-1.5-flash"
-)
-
-# ==========================================
-# COMMANDS
-# ==========================================
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    await update.message.reply_text(
-        "🔥 AI Bot Online!"
+    from telegram import Update
+    from telegram.ext import (
+        Application,
+        CommandHandler,
+        MessageHandler,
+        filters,
+        ContextTypes
     )
 
-# ==========================================
-# CHAT
-# ==========================================
+    print("IMPORTS SUCCESS")
 
-async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.basicConfig(level=logging.INFO)
 
-    user_text = update.message.text
+    BOT_TOKEN = os.getenv("8924341818:AAHw7lhFd2ubSwYJOZYo03VJT3uHvEvgKvM")
+    GEMINI_API_KEY = os.getenv("AIzaSyDcOWamA94-NeJ1uptjSE-KKc3WYX23NrU")
 
-    try:
+    print("BOT TOKEN EXISTS:", bool(BOT_TOKEN))
+    print("GEMINI EXISTS:", bool(GEMINI_API_KEY))
 
-        response = model.generate_content(
-            user_text
-        )
+    if not BOT_TOKEN:
+        raise Exception("BOT_TOKEN NOT FOUND")
 
-        text = response.text[:4000]
+    if not GEMINI_API_KEY:
+        raise Exception("GEMINI_API_KEY NOT FOUND")
 
-        await update.message.reply_text(text)
+    genai.configure(
+        api_key=GEMINI_API_KEY
+    )
 
-    except Exception as e:
+    print("GEMINI CONFIGURED")
 
-        logger.error(e)
+    model = genai.GenerativeModel(
+        "gemini-1.5-flash"
+    )
+
+    print("MODEL LOADED")
+
+    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(
-            f"Error:\n{e}"
+            "🔥 Bot Online!"
         )
 
-# ==========================================
-# MAIN
-# ==========================================
+    async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-async def main():
+        try:
 
-    app = Application.builder().token(
-        BOT_TOKEN
-    ).build()
+            user_text = update.message.text
 
-    app.add_handler(
-        CommandHandler("start", start)
-    )
+            response = model.generate_content(
+                user_text
+            )
 
-    app.add_handler(
-        MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
-            chat
+            await update.message.reply_text(
+                response.text[:4000]
+            )
+
+        except Exception as e:
+
+            await update.message.reply_text(
+                str(e)
+            )
+
+    async def main():
+
+        print("BUILDING APP")
+
+        app = Application.builder().token(
+            BOT_TOKEN
+        ).build()
+
+        print("ADDING HANDLERS")
+
+        app.add_handler(
+            CommandHandler("start", start)
         )
-    )
 
-    print("BOT RUNNING...")
+        app.add_handler(
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND,
+                chat
+            )
+        )
 
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling()
+        print("INITIALIZING")
 
-    while True:
-        await asyncio.sleep(3600)
+        await app.initialize()
 
-# ==========================================
-# START
-# ==========================================
+        print("STARTING")
 
-if __name__ == "__main__":
+        await app.start()
+
+        print("POLLING")
+
+        await app.updater.start_polling()
+
+        print("BOT RUNNING SUCCESSFULLY")
+
+        while True:
+            await asyncio.sleep(3600)
 
     asyncio.run(main())
+
+except Exception as e:
+
+    print("\n===== FULL ERROR =====\n")
+
+    traceback.print_exc()
+
+    print("\n======================\n")
